@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Extreme Presentation - Neraca Pembayaran</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-gold: #FFD700;
+            --gold-glow: #aa8e0b;
+            --accent-blue: #00f2ff;
+            --deep-bg: #000000;
+            --glass-bg: rgba(10, 10, 10, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --anim-fast: 0.45s;
+            --anim-med: 0.9s;
+            --anim-slow: 1.6s;
+
+            /* Animation intensity knobs (safe to tweak) */
+            --particle-count: 40; /* read by JS */
+            --cursor-trail-length: 12; /* read by JS */
+            --slide-tilt-max: 10deg; /* read by JS */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            cursor: none; /* Custom cursor vibe */
+        }
+
+        /* Custom Cursor */
+        #cursor {
+            position: fixed;
+            top: 0; left: 0;
+            width: 20px; height: 20px;
+            border: 2px solid var(--primary-gold);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: width 0.18s, height 0.18s, background 0.18s, transform 0.08s linear;
+            mix-blend-mode: difference;
+            will-change: transform, width, height, background;
+            backdrop-filter: blur(2px);
+        }
+        #cursor.hovered {
+            width: 56px; height: 56px;
+            background: linear-gradient(180deg, rgba(255,215,0,0.14), rgba(255,215,0,0.06));
+            border-color: transparent;
+            transform: translate(-50%, -50%) scale(1.02);
+            box-shadow: 0 8px 40px rgba(255,215,0,0.08), inset 0 0 6px rgba(255,215,0,0.06);
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-color: var(--deep-bg);
+            color: var(--text-main);
+            font-family: 'Lato', sans-serif;
+        }
+
+        /* Cinematic Grain Overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 900;
+            opacity: 0.4;
+            mix-blend-mode: overlay;
+        }
+
+        .presentation-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            perspective: 1200px;
+            overflow: hidden;
+        }
+
+        /* Slide Styles */
+        .slide {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1.1s var(--ease-out-expo), transform 1.4s var(--ease-out-expo);
+            background-size: cover;
+            background-position: center;
+            transform: scale(1.12) translateZ(0);
+            z-index: 0;
+            padding: 20px;
+            backface-visibility: hidden; /* help with 3D flip */
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1) translateZ(0);
+            z-index: 1;
+        }
+
+        /* Keep background visual intact but allow animated offset via pseudo */
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: inherit;
+            z-index: -1;
+            filter: brightness(0.38) grayscale(30%);
+            animation: kenBurns 22s infinite alternate linear;
+            will-change: transform, filter;
+            transform-origin: center center;
+        }
+
+        @keyframes kenBurns {
+            0% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.06) translateY(-1.2%); }
+            100% { transform: scale(1.12) translateY(-2.4%); }
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, rgba(0,0,0,0.28) 0%, #000000 120%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* 3D Tilt Card */
+        .content {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 1000px;
+            padding: 60px 50px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(40px) saturate(200%);
+            -webkit-backdrop-filter: blur(40px) saturate(200%);
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255,255,255,0.2);
+            border-radius: 30px;
+            box-shadow: 0 40px 100px -20px rgba(0,0,0,0.9);
+            text-align: center;
+            transform-style: preserve-3d; /* Key for 3D Text */
+            transform: translateY(50px) rotateX(6deg);
+            opacity: 0;
+            transition: transform 0.12s linear, opacity 0.5s ease, box-shadow 0.5s ease; /* Tilt dikontrol JS */
+            will-change: transform, opacity, box-shadow;
+        }
+
+        .slide.active .content {
+            opacity: 1;
+            /* Transform set by JS for Tilt, base state handled by animation */
+            animation: cardEntrance 1.1s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes cardEntrance {
+            from { opacity: 0; transform: translateY(120px) scale(0.96); }
+            60% { transform: translateY(-8px) scale(1.02); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Elemen Animasi Internal (Brutal Stagger) */
+        .anim-el {
+            opacity: 0;
+            transform: translateY(40px);
+            filter: blur(14px);
+            transition: all 0.9s var(--ease-out-expo);
+            will-change: transform, opacity, filter;
+        }
+
+        .slide.active .anim-el.show {
+            opacity: 1;
+            transform: translateY(0) translateZ(0.01px);
+            filter: blur(0);
+        }
+
+        /* Typografi */
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 900;
+            font-size: clamp(3rem, 7vw, 6rem);
+            color: var(--primary-gold);
+            text-transform: uppercase;
+            letter-spacing: -3px;
+            line-height: 0.9;
+            margin-bottom: 20px;
+            text-shadow: 0 0 50px rgba(255, 215, 0, 0.4);
+            position: relative;
+            display: inline-block;
+            transform-origin: center center;
+            will-change: transform, text-shadow;
+        }
+
+        h2 { 
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: clamp(1.5rem, 4vw, 3rem); 
+            margin-bottom: 30px; 
+            letter-spacing: -1px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(110deg, #fff 20%, var(--primary-gold) 40%, #fff 60%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 3.8s linear infinite;
+        }
+
+        @keyframes shine {
+            0% { background-position: 0% center; }
+            50% { background-position: 100% center; }
+            100% { background-position: 0% center; }
+        }
+
+        p { 
+            font-size: clamp(1.1rem, 2.2vw, 1.4rem); 
+            line-height: 1.8; 
+            margin-bottom: 25px; 
+            color: #d0d0d0;
+            font-weight: 300;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* List Items */
+        .list-group {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-top: 15px;
+            text-align: left;
+        }
+
+        .list-item {
+            margin-bottom: 20px;
+            font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+            display: flex;
+            align-items: center;
+            transition: transform 0.28s ease, color 0.28s ease;
+        }
+
+        .bullet {
+            width: 12px; height: 12px;
+            background: var(--primary-gold);
+            margin-right: 25px;
+            transform: rotate(45deg);
+            box-shadow: 0 0 15px var(--primary-gold);
+            position: relative;
+        }
+        
+        .bullet::after {
+            content: ''; position: absolute;
+            top: -5px; left: -5px; right: -5px; bottom: -5px;
+            border: 1px solid var(--primary-gold);
+            opacity: 0.5;
+            animation: spin 4s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Grid Layout */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            width: 100%;
+        }
+
+        .card-inner {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.32s ease;
+        }
+        
+        .card-inner:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-10px) scale(1.02);
+            border-color: var(--primary-gold);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        /* Finance Box */
+        .finance-box {
+            background: rgba(0,0,0,0.4);
+            border-left: 5px solid var(--primary-gold);
+            padding: 30px;
+            border-radius: 0 20px 20px 0;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+        .finance-box::before {
+            content: ''; position: absolute; top:0; left:0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent);
+            transform: translateX(-100%);
+            animation: shimmerBar 3s infinite ease-in-out;
+        }
+        @keyframes shimmerBar { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+        /* Controls */
+        .progress-bar {
+            position: fixed; bottom: 0; left: 0; height: 6px;
+            background: var(--primary-gold);
+            box-shadow: 0 0 20px var(--primary-gold), 0 0 40px var(--primary-gold);
+            transition: width 1s var(--ease-out-expo);
+            z-index: 1000;
+        }
+
+        .counter {
+            position: fixed; top: 40px; right: 40px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 3rem; 
+            font-weight: 900; 
+            color: rgba(255,255,255,0.05);
+            -webkit-text-stroke: 1px rgba(255,255,255,0.2);
+            z-index: 1000; 
+            pointer-events: none;
+            transform-origin: center;
+        }
+        
+        .hint-text {
+            color: var(--primary-gold); 
+            font-size: 0.9rem; 
+            margin-top: 40px; 
+            letter-spacing: 4px; 
+            text-transform: uppercase;
+            opacity: 0;
+            animation: pulseHint 2s infinite 2s; /* delay start */
+        }
+        @keyframes pulseHint {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        /* Decorative Line */
+        .gold-line {
+            width: 0;
+            height: 3px;
+            background: var(--primary-gold);
+            margin: 20px auto;
+            box-shadow: 0 0 10px var(--primary-gold);
+            transition: width 1.5s var(--ease-out-expo) 0.5s;
+        }
+        .slide.active .gold-line { width: 80px; }
+
+        /* Floating Particles Container */
+        #particles {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 2;
+            overflow: visible;
+        }
+        .particle {
+            position: absolute;
+            background: radial-gradient(circle at 30% 30%, rgba(255,240,200,1), rgba(255,215,0,0.9));
+            border-radius: 50%;
+            opacity: 0;
+            transform: translate3d(0,0,0);
+            will-change: transform, opacity;
+            filter: drop-shadow(0 0 8px rgba(255,215,0,0.18));
+            mix-blend-mode: screen;
+        }
+
+        /* Particle path animation (use transform for GPU accel) */
+        @keyframes floatParticlePath {
+            0% { transform: translate3d(var(--sx,0), var(--sy,0), 0) scale(var(--scl,1)); opacity: 0; }
+            8% { opacity: 0.6; }
+            50% { opacity: 0.9; }
+            92% { opacity: 0.4; }
+            100% { transform: translate3d(var(--ex,0), var(--ey,-100vh), 0) scale(0.6); opacity: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .grid-container { grid-template-columns: 1fr; }
+            .content { padding: 30px 20px; width: 92%; }
+            h1 { font-size: 2.5rem; }
+            .counter { top: 20px; right: 20px; font-size: 2rem; }
+        }
+
+        /* Background Images */
+        .bg1 { background-image: url('https://images.unsplash.com/photo-1639322537228-f710d846310a?q=80&w=2232&auto=format&fit=crop'); }
+        .bg2 { background-image: url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2664&auto=format&fit=crop'); }
+        .bg3 { background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=2070'); }
+        .bg5 { background-image: url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070'); }
+        .bg8 { background-image: url('https://images.unsplash.com/photo-1611974717483-5828518546b7?q=80&w=2070'); }
+        .bg11 { background-image: url('https://images.unsplash.com/photo-1565514020176-dbf2277f373d?q=80&w=2070'); }
+        .bg12 { background-image: url('https://images.unsplash.com/photo-1518186285589-2f7649de83e0?q=80&w=1974'); }
+
+
+
+
+
+/* =========================
+   BRUTAL CINEMATIC ANIMATION
+   (SAFE – VISUAL TIDAK BERUBAH)
+========================= */
+
+/* Screen Breathing Effect */
+.presentation-container {
+    animation: breathe 12s ease-in-out infinite;
+}
+@keyframes breathe {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.006); }
+}
+
+/* Background Subtle Pulse */
+.slide::before {
+    animation:
+        kenBurns 22s infinite alternate linear,
+        bgPulse 6s ease-in-out infinite;
+}
+@keyframes bgPulse {
+    0%,100% { filter: brightness(0.38) grayscale(30%); }
+    50% { filter: brightness(0.56) grayscale(20%); }
+}
+
+/* Title Micro Shake (Very Subtle with small z-axis pop) */
+.slide.active h1 {
+    animation: titleAlive 4s ease-in-out infinite;
+}
+@keyframes titleAlive {
+    0%,100% { transform: translateZ(0) translateY(0); text-shadow: 0 0 30px rgba(255,215,0,0.18); }
+    25% { transform: translateZ(8px) translateY(-1px); text-shadow: 0 0 44px rgba(255,215,0,0.28); }
+    50% { transform: translateZ(18px) translateY(-2px); text-shadow: 0 0 60px rgba(255,215,0,0.36); }
+    75% { transform: translateZ(8px) translateY(-1px); }
+}
+
+/* Card Floating (Glass Feel) */
+.slide.active .content {
+    animation:
+        cardEntrance 1.1s var(--ease-out-expo) forwards,
+        floatCard 6s ease-in-out infinite;
+}
+@keyframes floatCard {
+    0%,100% { transform: translateY(0) rotateX(0deg) scale(1); }
+    50% { transform: translateY(-9px) rotateX(0deg) scale(1.002); }
+}
+
+/* Gold Line Energy Charge */
+.slide.active .gold-line {
+    animation: chargeLine 2.2s cubic-bezier(0.2, 0.9, 0.2, 1.0) forwards;
+}
+@keyframes chargeLine {
+    0% { width: 0; box-shadow: none; transform: translateX(0); }
+    70% { width: 82px; transform: translateX(6px); }
+    100% { width: 80px; box-shadow: 0 0 32px var(--primary-gold); transform: translateX(0); }
+}
+
+/* Bullet Pulse Energy */
+.bullet {
+    animation: bulletPulse 2s infinite ease-in-out;
+}
+@keyframes bulletPulse {
+    0%,100% { box-shadow: 0 0 10px var(--primary-gold); transform: scale(1); }
+    50% { box-shadow: 0 0 36px var(--primary-gold); transform: scale(1.08); }
+}
+
+/* Finance Box Inner Glow */
+.finance-box {
+    animation: financeGlow 4s ease-in-out infinite;
+}
+@keyframes financeGlow {
+    0%,100% { box-shadow: inset 0 0 0 rgba(255,215,0,0); }
+    50% { box-shadow: inset 0 0 40px rgba(255,215,0,0.14); }
+}
+
+/* Counter Flicker */
+.counter {
+    animation: counterFlicker 5s infinite;
+}
+@keyframes counterFlicker {
+    0%,100% { opacity: 1; transform: scale(1); }
+    46% { opacity: 0.5; transform: scale(0.98); }
+    95% { opacity: 1; transform: scale(1.02); }
+}
+
+/* Particle Glow Boost */
+.particle {
+    box-shadow: 0 0 14px rgba(255,215,0,0.28);
+}
+
+/* Click Shockwave (Visual Only) */
+.shockwave {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: shockwave 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    z-index: 999;
+    background: radial-gradient(circle, rgba(255,215,0,0.16) 0%, rgba(255,215,0,0.02) 60%, transparent 100%);
+    mix-blend-mode: screen;
+}
+@keyframes shockwave {
+    from { transform: scale(0); opacity: 0.9; }
+    40% { opacity: 0.6; }
+    to { transform: scale(28); opacity: 0; }
+}
+
+/* =========================
+   ADDITIONAL ANIMATION LAYERS
+   (BARREL OF VARIATIONS - ANIMASI SAJA)
+========================= */
+
+/* subtle slide rotation overlay on activation (only transforms) */
+.slide.active::after{
+    content: '';
+    position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    will-change: transform, opacity;
+    animation: activeOverlay 9s ease-in-out infinite;
+    opacity: 0.06;
+}
+@keyframes activeOverlay{
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(0.6deg) scale(1.01); }
+    100% { transform: rotate(0deg) scale(1); }
+}
+
+/* title shimmer micro-ripple */
+h1::after{
+    content: '';
+    position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(circle at 25% 20%, rgba(255,255,255,0.02), transparent 10%);
+    animation: titleRipple 7s ease-in-out infinite;
+}
+@keyframes titleRipple{
+    0% { transform: scale(1); opacity: 0.04; }
+    50% { transform: scale(1.03); opacity: 0.14; }
+    100% { transform: scale(1); opacity: 0.04; }
+}
+
+/* entrance variety presets applied per-slide to anim-el */
+.anim-el.variant-a.show { animation: elSlideUp 700ms var(--ease-out-expo) both; }
+.anim-el.variant-b.show { animation: elFadeScale 900ms var(--ease-out-expo) both; }
+.anim-el.variant-c.show { animation: elFloatIn 1.1s var(--ease-out-expo) both; }
+.anim-el.variant-d.show { animation: elFlipIn 950ms var(--ease-out-expo) both; }
+
+@keyframes elSlideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes elFadeScale { from { transform: scale(0.98) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+@keyframes elFloatIn { 0% { transform: translateY(50px) rotateX(10deg) scale(0.98); opacity: 0; } 60% { opacity: 1; } 100% { transform: translateY(0) rotateX(0) scale(1); } }
+@keyframes elFlipIn { 0% { transform: rotateX(25deg) translateY(30px) scale(0.98); opacity: 0; } 60% { transform: rotateX(-6deg) translateY(6px) scale(1.01); opacity: 1; } 100% { transform: rotateX(0) translateY(0) scale(1); } }
+
+/* cursor trail dots (purely cosmetic) */
+.cursor-trail {
+    position: fixed; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; z-index: 9998; opacity: 0.9; transform: translate(-50%, -50%);
+    transition: transform 120ms linear, opacity 320ms linear;
+}
+
+/* adaptive reduced-motion safe guard */
+@media (prefers-reduced-motion: reduce) {
+    .presentation-container, .slide::before, .slide.active .content, .anim-el, .particle, #cursor { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+    </style>
+</head>
+<body>
+
+    <div id="cursor"></div>
+    <div class="noise-overlay"></div>
+    <div id="particles"></div>
+    <div class="progress-bar" id="progress"></div>
+    <div class="counter" id="counter">01</div>
+
+    <div class="presentation-container">
+        
+        <div class="slide active bg1">
+            <div class="overlay"></div>
+            <div class="content" data-tilt>
+                <h1 class="anim-el">Neraca Pembayaran</h1>
+                <h2 class="gradient-text anim-el">International Balance of Payments</h2>
+                <div class="gold-line"></div>
+                <p class="anim-el">Menganalisis Arus Keuangan Global & Stabilitas Nasional</p>
+                <p class="hint-text anim-el"></p>
+            </div>
+        </div>
+
+        <div class="slide bg2">
+            <div class="overlay"></div>
+            <div class="content" data-tilt>
+                <h2 class="gradient-text anim-el">Anggota Kelompok</h2>
+                <div class="list-group">
+                    <div class="list-item anim-el"><div class="bullet"></div> <strong>Francesco Rau</strong></div>
+                    <div class="list-item anim-el"><div class="bullet"></div> <strong>Dhava Aqil Shafiq</strong></div>
+                    <div class="list-item anim-el"><div class="bullet"></div> <strong>M. Thariq Al - Ausad</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide bg3">
+            <div class="overlay"></div>
+            <div class="content" data-tilt>
+                <h2 class="gradient-text anim-el">Apa itu Neraca Pembayaran?</h2>
+                <p class="anim-el">Catatan sistematis seluruh transaksi ekonomi antara penduduk suatu negara dengan negara lain.</p>
+                <div class="list-group">
+                    <div class="list-item anim-el"><div class="bullet"></div> Mencakup Perorangan & Korporasi</div>
+                    <div class="list-item anim-el"><div class="bullet"></div> Transaksi Pemerintah Resmi</div>
+                    <div class="list-item anim-el"><div class="bullet"></div> Periode Umum 1 Tahun</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide bg5">
+            <div class="overlay"></div>
+            <div class="content" data-tilt>
+                <h2 class="gradient-text anim-el">Struktur Utama</h2>
+                <div class="grid-container">
+                    <div class="card-inner anim-el">
+                        <h3 style="color: var(--primary-gold); font-size: 1.5rem; margin-bottom:10px;">Transaksi Berjalan</h3>
+                        <p style="font-size: 1rem; margin: 0; color: #aaa;">Ekspor-Impor & Jasa</p>
+                    </div>
+                    <div class="card-inner anim-el">
+                        <h3 style="color: var(--accent-blue); font-size: 1.5rem; margin-bottom:10px;">Neraca Finansial</h3>
+                        <p style="font-size: 1rem; margin: 0; color: #aaa;">Investasi & Modal</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide bg8">
+            <div class="overlay"></div>
+            <div class="content" data-tilt>
+                <h2 class="gradient-text anim-el">Mekanisme Pencatatan</h2>
+                <div class="finance-box anim-el">
+                    <p style="margin-bottom: 15px;">
+                        <span style="color: #2ecc71; font-size: 1.5rem;">●</span> 
+                        <strong style="color: #fff; margin-left: 10px;">Kredit (+):</strong> <span style="color:#ccc">Uang Masuk</span>
+                    </p>
+                    <p style="margin-bottom: 25px;">
+                        <span style="color: #e74c3c; font-size: 1.5rem;">●</span> 
+                        <strong style="color: #fff; margin-left: 10px;">Debet (-):</strong> <span style="color:#ccc">Uang Keluar</span>
+                    </p>
+                    <p style="font-size: 0.95rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; font-style: italic;">
+                        "Tujuan akhir adalah keseimbangan akuntansi global."
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide bg11">
+            <div class="overlay"></div>
+            <div class="content" data-tilt>
+                <h2 class="gradient-text anim-el">Studi Kasus</h2>
+                <div class="anim-el" style="background: rgba(255,255,255,0.05); padding: 25px; border-radius: 15px; width: 100%;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                        <span>Ekspor Nikel</span>
+                        <span style="color: #2ecc71; font-weight: bold; text-shadow: 0 0 10px #2ecc71;">+$100jt</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <span>Impor BBM</span>
+                        <span style="color: #e74c3c; font-weight: bold; text-shadow: 0 0 10px #e74c3c;">-$120jt</span>
+                    </div>
+                    <h3 style="color: #e74c3c; margin: 15px 0; font-size: 2.2rem; font-weight:900;">Defisit $20jt</h3>
+                </div>
+                <p class="anim-el" style="font-size: 1rem; margin-top: 25px;">Konsekuensi: Penggunaan cadangan devisa atau utang luar negeri.</p>
+            </div>
+        </div>
+
+        <div class="slide bg12">
+            <div class="overlay"></div>
+            <div class="content" data-tilt>
+                <h1 class="anim-el" style="color: #fff;">Terima Kasih</h1>
+                <h2 class="gradient-text anim-el">Stabilitas Ekonomi</h2>
+                <div class="anim-el" style="width: 60px; height: 60px; border: 3px solid var(--primary-gold); border-radius: 50%; display:flex; align-items:center; justify-content:center; margin: 30px auto; box-shadow: 0 0 20px var(--primary-gold);">
+                    <span style="color: var(--primary-gold); font-size: 2rem; font-weight:bold;">?</span>
+                </div>
+                <p class="anim-el">Ada Pertanyaan?</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- State Management ---
+        let currentIdx = 0;
+        const slides = document.querySelectorAll('.slide');
+        const counter = document.getElementById('counter');
+        const progress = document.getElementById('progress');
+
+        // --- Improved Particle System (purely visual, GPU-accelerated) ---
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--particle-count')) || 40;
+            const w = window.innerWidth, h = window.innerHeight;
+            container.innerHTML = '';
+
+            for(let i=0; i<particleCount; i++) {
+                let p = document.createElement('div');
+                p.className = 'particle';
+                let size = Math.random() * 6 + 2;
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+
+                // randomized start/end positions expressed as vw/vh to avoid layout repaint costs
+                const sx = (Math.random() * 120 - 10).toFixed(2) + 'vw';
+                const sy = (Math.random() * 120 - 10).toFixed(2) + 'vh';
+                const ex = (Math.random() * 120 - 10).toFixed(2) + 'vw';
+                const ey = (-40 - Math.random() * 80).toFixed(2) + 'vh';
+
+                p.style.setProperty('--sx', sx);
+                p.style.setProperty('--sy', sy);
+                p.style.setProperty('--ex', ex);
+                p.style.setProperty('--ey', ey);
+                p.style.setProperty('--scl', (0.6 + Math.random() * 1.1).toFixed(2));
+
+                const dur = (Math.random() * 12 + 8).toFixed(2);
+                p.style.animation = `floatParticlePath ${dur}s linear ${ (Math.random()*3).toFixed(2) }s infinite`;
+                p.dataset.speed = dur;
+
+                // position initially via transform for GPU friendly movement
+                p.style.transform = `translate3d(${sx}, ${sy}, 0)`;
+                p.style.opacity = 0;
+                container.appendChild(p);
+            }
+        }
+        createParticles();
+
+        // --- Slide Logic with Staggered Reveal & Variants ---
+        function assignVariants(slide) {
+            const animEls = slide.querySelectorAll('.anim-el');
+            const variants = ['variant-a','variant-b','variant-c','variant-d'];
+            animEls.forEach((el, i) => {
+                el.classList.remove('variant-a','variant-b','variant-c','variant-d');
+                el.classList.add(variants[i % variants.length]);
+            });
+        }
+
+        function updateSlide(direction = 0) {
+            slides.forEach((s, i) => {
+                const isActive = i === currentIdx;
+                s.classList.toggle('active', isActive);
+                if (isActive) assignVariants(s);
+
+                const animEls = s.querySelectorAll('.anim-el');
+                if (!isActive) {
+                    animEls.forEach(el => {
+                        el.classList.remove('show');
+                        el.style.transitionDelay = '';
+                    });
+                } else {
+                    animEls.forEach((el, index) => {
+                        // cinematic stagger math
+                        const base = 0.12 + (index * 0.09);
+                        el.style.transitionDelay = (base) + 's';
+                        // Force reflow to ensure CSS animation restarts
+                        void el.offsetWidth;
+                        setTimeout(() => {
+                            if(s.classList.contains('active')) el.classList.add('show');
+                        }, 60 + index * 40);
+                    });
+                }
+            });
+
+            // Counter Animation (smoother)
+            let displayNum = (currentIdx + 1).toString().padStart(2, '0');
+            counter.style.transform = "translateY(-22px) scale(0.86)";
+            counter.style.opacity = 0;
+            setTimeout(() => {
+                counter.innerText = displayNum;
+                counter.style.transform = "translateY(0) scale(1)";
+                counter.style.opacity = 1;
+                counter.style.transition = "all 0.44s cubic-bezier(0.16, 1, 0.3, 1)";
+            }, 260);
+
+            let progWidth = ((currentIdx + 1) / slides.length) * 100;
+            progress.style.width = progWidth + '%';
+
+            // small depth boost for active content (visual only)
+            document.querySelectorAll('.slide .content').forEach(c => c.style.willChange = 'transform');
+        }
+
+        // --- Smooth Cursor & Trail using requestAnimationFrame ---
+        const cursor = document.getElementById('cursor');
+        const trailPool = [];
+        const TRAIL_MAX = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cursor-trail-length')) || 12;
+        for(let i=0;i<TRAIL_MAX;i++){
+            let d = document.createElement('div');
+            d.className='cursor-trail';
+            d.style.background='rgba(255,215,0,'+ (0.08 + i*(0.06)) +')';
+            d.style.width = (6 + (i%3)) + 'px';
+            d.style.height = (6 + (i%3)) + 'px';
+            d.style.zIndex = 9998;
+            d.style.transform = 'translate3d(-50%, -50%, 0)';
+            document.body.appendChild(d);
+            trailPool.push(d);
+        }
+
+        let mouse = { x: window.innerWidth/2, y: window.innerHeight/2 };
+        let smooth = { x: mouse.x, y: mouse.y };
+
+        document.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX; mouse.y = e.clientY;
+            cursor.style.left = mouse.x + 'px';
+            cursor.style.top = mouse.y + 'px';
+        });
+
+        // rAF loop for trailing dots (more fluid and cheaper than timeouts)
+        function trailLoop(){
+            smooth.x += (mouse.x - smooth.x) * 0.22;
+            smooth.y += (mouse.y - smooth.y) * 0.22;
+            trailPool.forEach((dot, idx) => {
+                const f = 0.08 + idx * 0.02;
+                const tx = smooth.x + (mouse.x - smooth.x) * f;
+                const ty = smooth.y + (mouse.y - smooth.y) * f;
+                dot.style.left = tx + 'px';
+                dot.style.top = ty + 'px';
+                dot.style.opacity = (0.9 - idx * 0.06).toFixed(2);
+            });
+            requestAnimationFrame(trailLoop);
+        }
+        requestAnimationFrame(trailLoop);
+
+        // add hover toggles for interactive feel
+        document.querySelectorAll('a, button, .content, .list-item').forEach(el => {
+            el.addEventListener('mouseenter', () => cursor.classList.add('hovered'));
+            el.addEventListener('mouseleave', () => cursor.classList.remove('hovered'));
+        });
+
+        // --- 3D Parallax Tilt Logic (Lightweight, reduced magnitude) ---
+        document.addEventListener('mousemove', (e) => {
+            if(window.innerWidth < 768) return; // Disable on mobile
+            const x = (window.innerWidth / 2 - e.clientX) / 42; // smaller divisor for micro-tilt
+            const y = (window.innerHeight / 2 - e.clientY) / 42;
+            const activeContent = document.querySelector('.slide.active .content');
+            if(activeContent) {
+                // GPU-friendly transform - small values to avoid layout changes
+                activeContent.style.transform = `rotateY(${(-x).toFixed(2)}deg) rotateX(${(y).toFixed(2)}deg) translateZ(0.01px)`;
+            }
+            const activeSlide = document.querySelector('.slide.active');
+            if(activeSlide) {
+                const px = (e.clientX / window.innerWidth - 0.5) * 6; // smaller offset
+                const py = (e.clientY / window.innerHeight - 0.5) * 6;
+                activeSlide.style.transform = `translateZ(0) rotate(${(px/36).toFixed(2)}deg)`;
+                activeSlide.querySelector('.content').style.boxShadow = '0 42px 90px rgba(0,0,0,0.9), 0 0 64px rgba(255,215,0,0.06)';
+            }
+        });
+
+        // --- Navigation Handlers ---
+        function nextSlide() {
+            currentIdx = (currentIdx + 1) % slides.length;
+            triggerParticlePulse();
+            updateSlide(1);
+        }
+
+        function prevSlide() {
+            currentIdx = (currentIdx - 1 + slides.length) % slides.length;
+            triggerParticlePulse();
+            updateSlide(-1);
+        }
+
+        document.body.addEventListener('click', (e) => {
+            nextSlide();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (['Space', 'ArrowRight', 'Enter', 'PageDown'].includes(e.code)) nextSlide();
+            if (['ArrowLeft', 'PageUp'].includes(e.code)) prevSlide();
+        });
+
+        // Initial Load
+        updateSlide();
+
+        /* =========================
+           BRUTAL INTERACTION FX
+           (AMAN – TIDAK MERUSAK)
+        ========================= */
+
+        // Click Shockwave Effect (improved radial gradient + cleanup)
+        document.addEventListener('click', (e) => {
+            const wave = document.createElement('div');
+            wave.className = 'shockwave';
+            wave.style.left = e.clientX + 'px';
+            wave.style.top = e.clientY + 'px';
+            document.body.appendChild(wave);
+            setTimeout(() => wave.remove(), 900);
+        });
+
+        // Depth Boost on Slide Change (observer simplified)
+        const observer = new MutationObserver(() => {
+            const active = document.querySelector('.slide.active .content');
+            if(active) {
+                active.style.boxShadow =
+                    '0 48px 110px rgba(0,0,0,0.92), 0 0 80px rgba(255,215,0,0.06)';
+            }
+        });
+        observer.observe(document.body, { attributes: true, subtree: true });
+
+        // Particle Speed Sync (keyboard press creates a short pulse)
+        document.addEventListener('keydown', () => {
+            document.querySelectorAll('.particle').forEach(p => {
+                p.style.animationPlayState = 'running';
+                p.style.animationDuration = '6s';
+                setTimeout(() => p.style.animationDuration = (parseFloat(p.dataset.speed) + 4) + 's', 500);
+            });
+        });
+
+        // subtle periodic particle shuffle to create variety without changing visuals
+        setInterval(() => {
+            document.querySelectorAll('.particle').forEach((p, i) => {
+                const nx = (Math.random() * 120 - 10).toFixed(2) + 'vw';
+                const ny = (Math.random() * 120 - 10).toFixed(2) + 'vh';
+                p.style.setProperty('--sx', nx);
+                p.style.setProperty('--sy', ny);
+                p.style.opacity = 0.3 + Math.random() * 0.7;
+            });
+        }, 7000);
+
+        // small pulse when slides change to add energy (visual only)
+        function triggerParticlePulse(){
+            document.querySelectorAll('.particle').forEach((p, i) => {
+                // shorten animation temporarily for a denser feel
+                const orig = parseFloat(p.dataset.speed) || 12;
+                p.style.animationDuration = Math.max(3, orig * 0.55) + 's';
+                setTimeout(() => p.style.animationDuration = orig + 's', 500);
+            });
+        }
+
+        // Recreate particles on resize to adapt sizes/positions
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => createParticles(), 300);
+        });
+
+    </script>
+
+</body>
+</html>
